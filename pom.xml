@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--   Copyright (C) 2013-2014 Computer Sciences Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. -->
+
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>ezbake</groupId>
+        <artifactId>ezbake-parent</artifactId>
+        <version>2.0-SNAPSHOT</version>
+    </parent>
+
+    <groupId>ezbake</groupId>
+    <artifactId>ezbake-reverseproxy-thrift</artifactId>
+    <version>2.0-SNAPSHOT</version>
+    <packaging>nar</packaging>
+
+    <name>ezbake-reverseproxy-thrift</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <ezbake.version>2.0-SNAPSHOT</ezbake.version>
+        <maven.test.skip>true</maven.test.skip>
+        <native.build.skip>true</native.build.skip>
+        <thrift.resources.dir>${project.build.directory}/thrift-resources</thrift.resources.dir>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>ezbake</groupId>
+            <artifactId>ezbake-base-thrift</artifactId>
+            <version>${ezbake.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <filtering>false</filtering>
+                <directory>src/main/thrift</directory>
+                <targetPath>${thrift.resources.dir}</targetPath>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>com.github.maven-nar</groupId>
+                <artifactId>nar-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <ignore>${native.build.skip}</ignore>
+                    <cpp>
+                        <name>g++</name>
+                        <includePaths>
+                            <includePath>${basedir}/src/main/cpp/include</includePath>
+                        </includePaths>
+                        <clearDefaultOptions>true</clearDefaultOptions>
+                        <options>
+                            <option>-O0</option>
+                            <option>-g3</option>
+                            <option>-fmessage-length=0</option>
+                            <option>-std=c++0x</option>
+                            <option>-Wall</option>
+                            <option>-Wpointer-arith</option>
+                            <option>-Wno-long-long</option>
+                            <option>-fPIC</option>
+                            <option>-c</option>
+                        </options>
+                    </cpp>
+                    <libraries>
+                        <library><type>shared</type></library>
+                        <library><type>static</type></library>
+                    </libraries>
+                    <linker><name>g++</name></linker>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>1.7</version>
+                <executions>
+                    <execution>
+                        <id>attach-artifacts</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>attach-artifact</goal>
+                        </goals>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>target/${project.artifactId}-${project.version}.jar</file>
+                                    <type>jar</type>
+                                </artifact>
+                            </artifacts>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>gen-thrift</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <thrift.installation.path>/usr/local</thrift.installation.path>
+                <languages.to.generate>java cpp python nodejs ruby</languages.to.generate>
+            </properties>
+            <build>
+                <plugins>
+		    <plugin>
+		        <groupId>org.apache.maven.plugins</groupId>
+		        <artifactId>maven-dependency-plugin</artifactId>
+		        <version>2.9</version>
+		        <executions>
+		            <execution>
+		                <id>unpack-resources</id>
+		                <phase>generate-resources</phase>
+		                <goals>
+		                    <goal>unpack-dependencies</goal>
+		                </goals>
+		                <configuration>
+		                    <includeGroupIds>${project.groupId}</includeGroupIds>
+		                    <includeArtifactIds>ezbake-base-thrift</includeArtifactIds>
+		                    <excludeTransitive>true</excludeTransitive>
+		                    <outputDirectory>${thrift.resources.dir}/ezbake-base-thrift</outputDirectory>
+		                    <excludes>${project.groupId}/**,META-INF/**</excludes>
+		                    <overWriteReleases>true</overWriteReleases>
+		                    <overWriteSnapshots>true</overWriteSnapshots>
+		                </configuration>
+		            </execution>
+		        </executions>
+		    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>1.2.1</version>
+                        <executions>
+                            <execution>
+                                <id>generate-thrift</id>
+                                <goals><goal>exec</goal></goals>
+                                <phase>generate-resources</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <executable>${basedir}/src/main/scripts/generate-thrift.sh</executable>
+                            <commandlineArgs>${thrift.resources.dir} ${thrift.installation.path} ${languages.to.generate}</commandlineArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <activation>
+                <os>
+                    <name>Linux</name>
+                    <family>UNIX</family>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <native.build.skip>false</native.build.skip>
+            </properties>
+        </profile>
+    </profiles>
+</project>
